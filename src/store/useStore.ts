@@ -2,10 +2,11 @@ import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { db, META_KEYS } from '../lib/db'
 import { pullFromSupabase, pushToSupabase } from '../lib/supabaseSync'
-import type { WorkoutDay, UserProfile, LiftState, T3LiftState, WorkoutSession } from '../types'
+import type { WorkoutDay, UserProfile, LiftState, T3LiftState, WorkoutSession, ProgressionEvent, PersonalRecord } from '../types'
 import { DAY_STRUCTURE } from '../types'
 import { getIncrement } from '../lib/weightUtils'
 import { computeT1Progression, computeT2Progression, getSetsFromScheme, getT1Scheme, getT2Scheme } from '../lib/progression'
+import { createProgressionEvents } from '../lib/progressionEvents'
 
 const DEFAULT_PROFILE: UserProfile = {
   units: 'lbs',
@@ -42,7 +43,7 @@ interface AppState {
   completeSet: (exerciseIndex: number, setIndex: number, actualReps?: number) => Promise<void>
   completeT3Amrap: (exerciseIndex: number, reps: number) => Promise<void>
   nextExercise: () => void
-  finishWorkout: () => Promise<void>
+  finishWorkout: () => Promise<{ exerciseName: string; tier?: string; recordType: string }[]>
   getLiftState: (liftName: string, tier: 'T1' | 'T2') => LiftState | undefined
   getT3State: (liftName: string) => T3LiftState | undefined
   updateLiftOverride: (liftName: string, tier: 'T1' | 'T2', weight: number, stage?: number) => Promise<void>
@@ -51,6 +52,10 @@ interface AppState {
   exportData: () => Promise<string>
   importData: (json: string) => Promise<void>
   resetAll: () => Promise<void>
+  logBodyweight: (weight: number) => Promise<void>
+  getProgressionEvents: (liftName: string, tier: 'T1' | 'T2') => Promise<ProgressionEvent[]>
+  getBodyweightLog: () => Promise<{ weight: number; loggedAt: string }[]>
+  getPersonalRecords: () => Promise<PersonalRecord[]>
 }
 
 export const useStore = create<AppState>()(
@@ -170,9 +175,7 @@ export const useStore = create<AppState>()(
     getNextWorkoutDay: () => {
       const { lastWorkoutDay, lastWorkoutDate } = get()
       const order: WorkoutDay[] = ['A1', 'B1', 'A2', 'B2']
-      const today = new Date().toISOString().slice(0, 10)
       if (!lastWorkoutDay || !lastWorkoutDate) return order[0]
-      if (lastWorkoutDate === today) return lastWorkoutDay
       const lastIdx = order.indexOf(lastWorkoutDay)
       return order[(lastIdx + 1) % 4]
     },
@@ -297,13 +300,14 @@ export const useStore = create<AppState>()(
 
     finishWorkout: async () => {
       const session = get().activeSession
-      if (!session) return
+      if (!session) return []
 
       const { profile, lifts, t3Lifts } = get()
-      if (!profile) return
+      if (!profile) return []
 
       const newLifts = new Map(lifts)
       const newT3Lifts = new Map(t3Lifts)
+      const prsHit: { exerciseName: string; tier?: string; recordType: string }[] = []
 
       for (const ex of session.exercises) {
         if (ex.tier === 'T1') {
@@ -316,6 +320,20 @@ export const useStore = create<AppState>()(
               allCompleted,
               state.increment
             )
+            const setsCompleted = ex.sets.map((s) => s.actualReps ?? 0)
+            const events = createProgressionEvents(
+              ex.liftName,
+              'T1',
+              allCompleted,
+              state.currentWeight,
+              state.currentStage,
+              result,
+              session.id,
+              setsCompleted,
+              state.currentScheme
+            )
+            for (const ev of events) await db.progressionEvents.add(ev)
+
             const updated: LiftState = {
               ...state,
               currentWeight: result.newWeight,
@@ -328,13 +346,45 @@ export const useStore = create<AppState>()(
                   weight: ex.targetWeight,
                   stage: state.currentStage,
                   scheme: state.currentScheme,
-                  setsCompleted: ex.sets.map((s) => s.actualReps ?? 0),
+                  setsCompleted,
                   completed: allCompleted
                 }
               ]
             }
             newLifts.set(getLiftId(ex.liftName, 'T1'), updated)
             await db.lifts.put({ ...updated, id: getLiftId(ex.liftName, 'T1') })
+
+            const volume = ex.targetWeight * setsCompleted.reduce((a, b) => a + b, 0)
+            const weightRecords = (await db.personalRecords.where('exerciseName').equals(ex.liftName).toArray())
+              .filter((r) => r.recordType === 'weight')
+            const volRecords = (await db.personalRecords.where('exerciseName').equals(ex.liftName).toArray())
+              .filter((r) => r.recordType === 'volume')
+            const bestWeight = weightRecords.length ? Math.max(...weightRecords.map((r) => r.value)) : 0
+            const bestVol = volRecords.length ? Math.max(...volRecords.map((r) => r.value)) : 0
+            if (ex.targetWeight > bestWeight) {
+              await db.personalRecords.add({
+                id: crypto.randomUUID(),
+                exerciseName: ex.liftName,
+                tier: 'T1',
+                recordType: 'weight',
+                value: ex.targetWeight,
+                workoutId: session.id,
+                achievedAt: Date.now()
+              })
+              prsHit.push({ exerciseName: ex.liftName, tier: 'T1', recordType: 'weight' })
+            }
+            if (volume > bestVol) {
+              await db.personalRecords.add({
+                id: crypto.randomUUID(),
+                exerciseName: ex.liftName,
+                tier: 'T1',
+                recordType: 'volume',
+                value: volume,
+                workoutId: session.id,
+                achievedAt: Date.now()
+              })
+              prsHit.push({ exerciseName: ex.liftName, tier: 'T1', recordType: 'volume' })
+            }
           }
         } else if (ex.tier === 'T2') {
           const state = lifts.get(getLiftId(ex.liftName, 'T2'))
@@ -346,6 +396,20 @@ export const useStore = create<AppState>()(
               allCompleted,
               state.increment
             )
+            const setsCompleted = ex.sets.map((s) => s.actualReps ?? 0)
+            const events = createProgressionEvents(
+              ex.liftName,
+              'T2',
+              allCompleted,
+              state.currentWeight,
+              state.currentStage,
+              result,
+              session.id,
+              setsCompleted,
+              state.currentScheme
+            )
+            for (const ev of events) await db.progressionEvents.add(ev)
+
             const updated: LiftState = {
               ...state,
               currentWeight: result.newWeight,
@@ -358,13 +422,46 @@ export const useStore = create<AppState>()(
                   weight: ex.targetWeight,
                   stage: state.currentStage,
                   scheme: state.currentScheme,
-                  setsCompleted: ex.sets.map((s) => s.actualReps ?? 0),
+                  setsCompleted,
                   completed: allCompleted
                 }
               ]
             }
             newLifts.set(getLiftId(ex.liftName, 'T2'), updated)
             await db.lifts.put({ ...updated, id: getLiftId(ex.liftName, 'T2') })
+
+            const volume = ex.targetWeight * setsCompleted.reduce((a, b) => a + b, 0)
+            const t2Key = ex.liftName + '-T2'
+            const weightRecords = (await db.personalRecords.where('exerciseName').equals(t2Key).toArray())
+              .filter((r) => r.recordType === 'weight')
+            const volRecords = (await db.personalRecords.where('exerciseName').equals(t2Key).toArray())
+              .filter((r) => r.recordType === 'volume')
+            const bestWeight = weightRecords.length ? Math.max(...weightRecords.map((r) => r.value)) : 0
+            const bestVol = volRecords.length ? Math.max(...volRecords.map((r) => r.value)) : 0
+            if (ex.targetWeight > bestWeight) {
+              await db.personalRecords.add({
+                id: crypto.randomUUID(),
+                exerciseName: ex.liftName + '-T2',
+                tier: 'T2',
+                recordType: 'weight',
+                value: ex.targetWeight,
+                workoutId: session.id,
+                achievedAt: Date.now()
+              })
+              prsHit.push({ exerciseName: ex.liftName, tier: 'T2', recordType: 'weight' })
+            }
+            if (volume > bestVol) {
+              await db.personalRecords.add({
+                id: crypto.randomUUID(),
+                exerciseName: ex.liftName + '-T2',
+                tier: 'T2',
+                recordType: 'volume',
+                value: volume,
+                workoutId: session.id,
+                achievedAt: Date.now()
+              })
+              prsHit.push({ exerciseName: ex.liftName, tier: 'T2', recordType: 'volume' })
+            }
           }
         } else if (ex.tier === 'T3') {
           const state = t3Lifts.get(ex.liftName)
@@ -390,7 +487,12 @@ export const useStore = create<AppState>()(
         }
       }
 
-      await db.sessions.put({ ...session, status: 'completed' })
+      const completedSession = {
+        ...session,
+        status: 'completed' as const,
+        completedAt: Date.now()
+      }
+      await db.sessions.put(completedSession)
       await db.meta.put({ key: META_KEYS.LAST_WORKOUT_DAY, value: session.day })
       await db.meta.put({ key: META_KEYS.LAST_WORKOUT_DATE, value: session.date })
 
@@ -402,6 +504,7 @@ export const useStore = create<AppState>()(
         lastWorkoutDate: session.date
       })
       pushToSupabase().catch(() => {})
+      return prsHit
     },
 
     getLiftState: (liftName, tier) => get().lifts.get(getLiftId(liftName, tier)),
@@ -445,13 +548,25 @@ export const useStore = create<AppState>()(
     },
 
     exportData: async () => {
-      const [profile, lifts, t3Lifts, sessions] = await Promise.all([
+      const [profile, lifts, t3Lifts, sessions, progressionEvents, bodyweightLog, personalRecords] = await Promise.all([
         db.profile.toArray(),
         db.lifts.toArray(),
         db.t3Lifts.toArray(),
-        db.sessions.toArray()
+        db.sessions.toArray(),
+        db.progressionEvents?.toArray().catch(() => []) ?? [],
+        db.bodyweightLog?.toArray().catch(() => []) ?? [],
+        db.personalRecords?.toArray().catch(() => []) ?? []
       ])
-      return JSON.stringify({ profile, lifts, t3Lifts, sessions, exportedAt: new Date().toISOString() })
+      return JSON.stringify({
+        profile,
+        lifts,
+        t3Lifts,
+        sessions,
+        progressionEvents: progressionEvents || [],
+        bodyweightLog: bodyweightLog || [],
+        personalRecords: personalRecords || [],
+        exportedAt: new Date().toISOString()
+      })
     },
 
     importData: async (json) => {
@@ -460,6 +575,9 @@ export const useStore = create<AppState>()(
       if (data.lifts) await db.lifts.bulkPut(data.lifts)
       if (data.t3Lifts) await db.t3Lifts.bulkPut(data.t3Lifts)
       if (data.sessions) await db.sessions.bulkPut(data.sessions)
+      if (data.progressionEvents?.length) await db.progressionEvents.bulkPut(data.progressionEvents)
+      if (data.bodyweightLog?.length) await db.bodyweightLog.bulkPut(data.bodyweightLog)
+      if (data.personalRecords?.length) await db.personalRecords.bulkPut(data.personalRecords)
       await get().loadData()
       pushToSupabase().catch(() => {})
     },
@@ -470,6 +588,9 @@ export const useStore = create<AppState>()(
       await db.t3Lifts.clear()
       await db.sessions.clear()
       await db.meta.clear()
+      if (db.progressionEvents) await db.progressionEvents.clear()
+      if (db.bodyweightLog) await db.bodyweightLog.clear()
+      if (db.personalRecords) await db.personalRecords.clear()
       set({
         profile: null,
         lifts: new Map(),
@@ -477,6 +598,37 @@ export const useStore = create<AppState>()(
         setupComplete: false,
         activeSession: null
       })
+    },
+
+    logBodyweight: async (weight) => {
+      const today = new Date().toISOString().slice(0, 10)
+      await db.bodyweightLog.put({ id: today, weight, loggedAt: today })
+      pushToSupabase().catch(() => {})
+    },
+
+    getProgressionEvents: async (liftName, tier) => {
+      const all = await db.progressionEvents
+        .where('liftName')
+        .equals(liftName)
+        .toArray()
+      return all
+        .filter((e) => e.tier === tier)
+        .sort((a, b) => b.createdAt - a.createdAt)
+    },
+
+    getBodyweightLog: async () => {
+      const logs = await db.bodyweightLog.orderBy('loggedAt').reverse().limit(90).toArray()
+      return logs.map((l) => ({ weight: l.weight, loggedAt: l.loggedAt }))
+    },
+
+    getPersonalRecords: async () => {
+      const records = await db.personalRecords.orderBy('achievedAt').reverse().toArray()
+      const byKey = new Map<string, PersonalRecord>()
+      for (const r of records) {
+        const key = `${r.exerciseName}-${r.recordType}`
+        if (!byKey.has(key)) byKey.set(key, r)
+      }
+      return Array.from(byKey.values())
     }
   }))
 )

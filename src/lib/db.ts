@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie'
-import type { UserProfile, LiftState, T3LiftState, WorkoutSession } from '../types'
+import type { UserProfile, LiftState, T3LiftState, WorkoutSession, ProgressionEvent, BodyweightLog, PersonalRecord } from '../types'
 
 export interface ProfileRecord extends UserProfile {
   id: string
@@ -19,6 +19,9 @@ export class GZCLPDatabase extends Dexie {
   t3Lifts!: Table<T3LiftRecord, string>
   sessions!: Table<WorkoutSession, string>
   meta!: Table<{ key: string; value: unknown }, string>
+  progressionEvents!: Table<ProgressionEvent, string>
+  bodyweightLog!: Table<BodyweightLog, string>
+  personalRecords!: Table<PersonalRecord, string>
 
   constructor() {
     super('GZCLPDatabase')
@@ -28,6 +31,16 @@ export class GZCLPDatabase extends Dexie {
       t3Lifts: 'id',
       sessions: 'id, date, status',
       meta: 'key'
+    })
+    this.version(2).stores({
+      profile: 'id',
+      lifts: 'id',
+      t3Lifts: 'id',
+      sessions: 'id, date, status',
+      meta: 'key',
+      progressionEvents: 'id, liftName, createdAt',
+      bodyweightLog: 'id, loggedAt',
+      personalRecords: 'id, exerciseName, recordType'
     })
   }
 }

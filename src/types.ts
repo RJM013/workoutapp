@@ -61,6 +61,7 @@ export interface WorkoutExercise {
   targetWeight: number
   targetScheme: string
   sets: WorkoutSet[]
+  notes?: string
 }
 
 export interface WorkoutSession {
@@ -70,6 +71,46 @@ export interface WorkoutSession {
   startTime: number
   exercises: WorkoutExercise[]
   status: 'in_progress' | 'completed'
+  notes?: string
+  completedAt?: number
+}
+
+export type ProgressionEventType =
+  | 'weight_increased'
+  | 'session_completed'
+  | 'session_failed'
+  | 'stage_advanced'
+  | 'reset'
+  | 'manual_override'
+
+export interface ProgressionEvent {
+  id: string
+  liftName: string
+  tier: 'T1' | 'T2'
+  eventType: ProgressionEventType
+  fromWeight?: number
+  toWeight?: number
+  fromStage?: number
+  toStage?: number
+  details?: Record<string, unknown>
+  workoutId?: string
+  createdAt: number
+}
+
+export interface BodyweightLog {
+  id: string
+  weight: number
+  loggedAt: string // YYYY-MM-DD
+}
+
+export interface PersonalRecord {
+  id: string
+  exerciseName: string
+  tier?: string
+  recordType: 'weight' | 'volume' | 'estimated_1rm'
+  value: number
+  workoutId?: string
+  achievedAt: number
 }
 
 export const MAIN_LIFTS = ['Squat', 'Bench Press', 'OHP', 'Deadlift'] as const

@@ -55,6 +55,17 @@ export default function Settings() {
       </header>
 
       <section className="mb-8">
+        <div className="flex gap-3">
+          <Link to="/learn" className="flex-1 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-center">
+            Learn GZCLP
+          </Link>
+          <Link to="/exercises" className="flex-1 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-center">
+            Exercise Library
+          </Link>
+        </div>
+      </section>
+
+      <section className="mb-8">
         <h2 className="text-lg font-semibold text-slate-200 mb-4">Units</h2>
         <div className="flex gap-4">
           <label className="flex items-center gap-2">

@@ -38,6 +38,9 @@ export async function pullFromSupabase(): Promise<boolean> {
     t3Lifts?: unknown[]
     sessions?: unknown[]
     meta?: { key: string; value: unknown }[]
+    progressionEvents?: unknown[]
+    bodyweightLog?: unknown[]
+    personalRecords?: unknown[]
   }
 
   try {
@@ -46,6 +49,9 @@ export async function pullFromSupabase(): Promise<boolean> {
     if (payload.t3Lifts?.length) await db.t3Lifts.bulkPut(payload.t3Lifts as T3LiftRecord[])
     if (payload.sessions?.length) await db.sessions.bulkPut(payload.sessions as WorkoutSession[])
     if (payload.meta?.length) await db.meta.bulkPut(payload.meta as { key: string; value: unknown }[])
+    if (payload.progressionEvents?.length && db.progressionEvents) await db.progressionEvents.bulkPut(payload.progressionEvents as Parameters<typeof db.progressionEvents.bulkPut>[0])
+    if (payload.bodyweightLog?.length && db.bodyweightLog) await db.bodyweightLog.bulkPut(payload.bodyweightLog as Parameters<typeof db.bodyweightLog.bulkPut>[0])
+    if (payload.personalRecords?.length && db.personalRecords) await db.personalRecords.bulkPut(payload.personalRecords as Parameters<typeof db.personalRecords.bulkPut>[0])
     return true
   } catch (e) {
     console.warn('Supabase pull merge failed:', e)
@@ -57,15 +63,18 @@ export async function pushToSupabase(): Promise<boolean> {
   const userId = await ensureAuth()
   if (!userId) return false
 
-  const [profile, lifts, t3Lifts, sessions, meta] = await Promise.all([
+  const [profile, lifts, t3Lifts, sessions, meta, progressionEvents, bodyweightLog, personalRecords] = await Promise.all([
     db.profile.toArray(),
     db.lifts.toArray(),
     db.t3Lifts.toArray(),
     db.sessions.toArray(),
-    db.meta.toArray()
+    db.meta.toArray(),
+    db.progressionEvents?.toArray().catch(() => []) ?? [],
+    db.bodyweightLog?.toArray().catch(() => []) ?? [],
+    db.personalRecords?.toArray().catch(() => []) ?? []
   ])
 
-  const payload = { profile, lifts, t3Lifts, sessions, meta }
+  const payload = { profile, lifts, t3Lifts, sessions, meta, progressionEvents, bodyweightLog, personalRecords }
 
   const { error } = await supabase
     .from('user_data')

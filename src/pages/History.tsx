@@ -27,9 +27,10 @@ export default function History() {
 
       <div className="space-y-3">
         {sessions.map((s) => (
-          <div
+          <Link
             key={s.id}
-            className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50"
+            to={`/history/${s.id}`}
+            className="block bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 hover:bg-slate-800/70"
           >
             <div className="flex justify-between items-start">
               <div>
@@ -47,7 +48,7 @@ export default function History() {
                 </li>
               ))}
             </ul>
-          </div>
+          </Link>
         ))}
       </div>
 

@@ -1,9 +1,18 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import RestTimer from '../components/RestTimer'
+import ExerciseInfoModal from '../components/ExerciseInfoModal'
+import PlateCalculator from '../components/PlateCalculator'
+import WarmUpSection from '../components/WarmUpSection'
 import { computeT1Progression, computeT2Progression } from '../lib/progression'
 import type { WorkoutExercise } from '../types'
+
+function formatDuration(ms: number): string {
+  const m = Math.floor(ms / 60000)
+  const s = Math.floor((ms % 60000) / 1000)
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
 
 export default function Workout() {
   const navigate = useNavigate()
@@ -13,6 +22,18 @@ export default function Workout() {
   const [restDuration, setRestDuration] = useState(180)
   const [editingSet, setEditingSet] = useState<{ ex: number; set: number } | null>(null)
   const [editReps, setEditReps] = useState('')
+  const [showExerciseInfo, setShowExerciseInfo] = useState(false)
+  const [showPlateCalc, setShowPlateCalc] = useState(false)
+  const [elapsed, setElapsed] = useState(0)
+
+  useEffect(() => {
+    if (!activeSession) return
+    const start = activeSession.startTime
+    const tick = () => setElapsed(Date.now() - start)
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [activeSession])
 
   const session = activeSession
   if (!session) return null
@@ -83,11 +104,11 @@ export default function Workout() {
     setEditReps('')
   }
 
-  const handleNext = () => {
+  const handleNext = async () => {
     setRestActive(false)
     if (isLastExercise) {
-      finishWorkout()
-      navigate('/')
+      const prs = await finishWorkout()
+      navigate('/summary', { state: { session, prs } })
     } else {
       setExerciseIndex((i) => i + 1)
     }
@@ -96,12 +117,39 @@ export default function Workout() {
   return (
     <div className="max-w-lg mx-auto p-6 pb-40">
       <div className="mb-6">
-        <p className="text-slate-400 text-sm">Day {session.day} • Exercise {exerciseIndex + 1} of {session.exercises.length}</p>
-        <h1 className="text-2xl font-bold text-slate-100">{ex?.liftName ?? ''}</h1>
-        <p className="text-3xl font-bold text-blue-400 mt-1">
-          {ex?.targetWeight} {profile?.units}
-        </p>
+        <div className="flex justify-between items-start">
+          <p className="text-slate-400 text-sm">Day {session.day} • Exercise {exerciseIndex + 1} of {session.exercises.length}</p>
+          <span className="text-slate-500 text-sm tabular-nums">{formatDuration(elapsed)}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-100">{ex?.liftName ?? ''}</h1>
+          <button
+            onClick={() => setShowExerciseInfo(true)}
+            className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-700"
+            aria-label="Exercise info"
+          >
+            ⓘ
+          </button>
+        </div>
+        <div className="flex items-center gap-2 mt-1">
+          <p className="text-3xl font-bold text-blue-400">
+            {ex?.targetWeight} {profile?.units}
+          </p>
+          <button
+            onClick={() => setShowPlateCalc(true)}
+            className="p-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-400 text-xs"
+          >
+            Plates
+          </button>
+        </div>
         <p className="text-slate-400">{ex?.targetScheme}</p>
+        {ex?.tier === 'T1' && (
+          <WarmUpSection
+            workingWeight={ex.targetWeight}
+            scheme={ex.targetScheme}
+            units={profile?.units}
+          />
+        )}
       </div>
 
       {ex && (
@@ -149,6 +197,12 @@ export default function Workout() {
         onSkip={() => setRestActive(false)}
       />
 
+      {showExerciseInfo && ex && (
+        <ExerciseInfoModal exerciseName={ex.liftName} onClose={() => setShowExerciseInfo(false)} />
+      )}
+      {showPlateCalc && ex && (
+        <PlateCalculator targetWeight={ex.targetWeight} onClose={() => setShowPlateCalc(false)} />
+      )}
       {editingSet !== null && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-20 p-6">
           <div className="bg-slate-800 rounded-xl p-6 w-full max-w-sm">
