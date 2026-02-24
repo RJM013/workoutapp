@@ -34,6 +34,10 @@ export interface UserProfile {
   currentDay?: WorkoutDay
   /** Phase 3: User-added exercises */
   customExercises?: CustomExerciseDefinition[]
+  /** Gamification: XP points */
+  xp?: number
+  /** Gamification: Level (1 per 100 XP) */
+  level?: number
 }
 
 export interface LiftHistoryEntry {

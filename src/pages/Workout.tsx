@@ -8,6 +8,7 @@ import WarmUpSection from '../components/WarmUpSection'
 import { getExerciseDefinition } from '../data/exerciseRegistry'
 import { computeT1Progression, computeT2Progression } from '../lib/progression'
 import { formatWeightForDisplay } from '../lib/weightUtils'
+import { hapticSetComplete, hapticExerciseComplete } from '../lib/haptic'
 import type { WorkoutExercise } from '../types'
 
 function formatDuration(ms: number): string {
@@ -18,7 +19,7 @@ function formatDuration(ms: number): string {
 
 export default function Workout() {
   const navigate = useNavigate()
-  const { activeSession, profile, completeSet, completeT3Amrap, finishWorkout } = useStore()
+  const { activeSession, profile, completeSet, completeT3Amrap, finishWorkout, abandonWorkout } = useStore()
   const [exerciseIndex, setExerciseIndex] = useState(0)
   const [restActive, setRestActive] = useState(false)
   const [restDuration, setRestDuration] = useState(180)
@@ -27,6 +28,7 @@ export default function Workout() {
   const [showExerciseInfo, setShowExerciseInfo] = useState(false)
   const [showPlateCalc, setShowPlateCalc] = useState(false)
   const [elapsed, setElapsed] = useState(0)
+  const [showAbandonConfirm, setShowAbandonConfirm] = useState(false)
   const hapticEnabled = typeof localStorage !== 'undefined' && localStorage.getItem('hapticEnabled') !== 'false'
 
   useEffect(() => {
@@ -90,6 +92,7 @@ export default function Workout() {
       return
     }
     await completeSet(exerciseIndex, setIdx)
+    hapticSetComplete()
     setRestDuration(getRestDuration())
     setRestActive(true)
   }
@@ -105,15 +108,17 @@ export default function Workout() {
     } else {
       await completeSet(exIdx, setIdx, reps)
     }
+    hapticSetComplete()
     setEditingSet(null)
     setEditReps('')
   }
 
   const handleNext = async () => {
+    hapticExerciseComplete()
     setRestActive(false)
     if (isLastExercise) {
-      const prs = await finishWorkout()
-      navigate('/summary', { state: { session, prs } })
+      const { prs, xpEarned } = await finishWorkout()
+      navigate('/summary', { state: { session, prs, xpEarned } })
     } else {
       setExerciseIndex((i) => i + 1)
     }
@@ -123,13 +128,22 @@ export default function Workout() {
   const def = ex ? getExerciseDefinition(ex.liftName) : null
   const equipment = def?.equipment ?? 'Barbell'
 
+  const today = new Date().toISOString().slice(0, 10)
+  const isResuming = session.date !== today
+
   return (
     <div className="max-w-lg mx-auto p-6 pb-40">
-      <div className="mb-6">
-        <div className="flex justify-between items-start">
-          <p className="text-[var(--color-text-secondary)] text-sm">Day {session.day} • Exercise {exerciseIndex + 1} of {session.exercises.length}</p>
-          <span className="text-[var(--color-text-muted)] text-sm tabular-nums">{formatDuration(elapsed)}</span>
+      {isResuming && (
+        <div className="mb-4 px-3 py-2 rounded-lg bg-[var(--color-bg-surface)] text-[var(--color-text-muted)] text-sm">
+          Resuming workout from {session.date}
         </div>
+      )}
+      <div className="mb-6 flex justify-between items-start">
+        <div className="flex-1">
+          <div className="flex justify-between items-start">
+            <p className="text-[var(--color-text-secondary)] text-sm">Day {session.day} • Exercise {exerciseIndex + 1} of {session.exercises.length}</p>
+            <span className="text-[var(--color-text-muted)] text-sm tabular-nums">{formatDuration(elapsed)}</span>
+          </div>
         <div className="flex items-center gap-2">
           <h1 className="text-xl font-semibold text-[var(--color-text-primary)] uppercase tracking-wide">{ex?.liftName ?? ''}</h1>
           <button
@@ -164,6 +178,13 @@ export default function Workout() {
             units={profile?.units}
           />
         )}
+        </div>
+        <button
+          onClick={() => setShowAbandonConfirm(true)}
+          className="text-[var(--color-text-muted)] hover:text-[var(--color-accent-fail)] text-xs shrink-0"
+        >
+          Abandon
+        </button>
       </div>
 
       {ex && (
@@ -231,7 +252,33 @@ export default function Workout() {
         <ExerciseInfoModal exerciseName={ex.liftName} onClose={() => setShowExerciseInfo(false)} />
       )}
       {showPlateCalc && ex && (
-        <PlateCalculator targetWeight={ex.targetWeight} onClose={() => setShowPlateCalc(false)} />
+        <PlateCalculator targetWeight={ex.targetWeight} onClose={() => setShowPlateCalc(false)} equipment={def?.equipment} />
+      )}
+      {showAbandonConfirm && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-20 p-6">
+          <div className="bg-[var(--color-bg-surface-overlay)] rounded-xl p-6 w-full max-w-sm border border-[var(--color-border-subtle)]">
+            <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">Abandon workout?</h3>
+            <p className="text-[var(--color-text-muted)] text-sm mb-4">Progress will not be saved. You can start a fresh workout from Home.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowAbandonConfirm(false)}
+                className="flex-1 py-3 rounded-lg bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-surface-raised)] text-[var(--color-text-secondary)] border border-[var(--color-border-subtle)]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  await abandonWorkout()
+                  setShowAbandonConfirm(false)
+                  navigate('/')
+                }}
+                className="flex-1 py-3 rounded-lg bg-[var(--color-accent-fail)] text-white font-semibold"
+              >
+                Abandon
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {editingSet !== null && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-20 p-6">

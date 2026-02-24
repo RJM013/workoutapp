@@ -40,7 +40,9 @@ export async function getProfile(userId: string): Promise<UserProfile | null> {
     restTimerT3: data.rest_timer_t3,
     dayStructure: (data.day_structure as UserProfile['dayStructure']) ?? undefined,
     currentDay: (data.current_day as UserProfile['currentDay']) ?? undefined,
-    customExercises: (data.custom_exercises as UserProfile['customExercises']) ?? undefined
+    customExercises: (data.custom_exercises as UserProfile['customExercises']) ?? undefined,
+    xp: data.xp ?? 0,
+    level: data.level ?? 1
   }
 }
 
@@ -56,21 +58,33 @@ export async function upsertProfile(userId: string, profile: UserProfile): Promi
       day_structure: profile.dayStructure ?? null,
       current_day: profile.currentDay ?? null,
       custom_exercises: profile.customExercises ?? [],
+      xp: profile.xp ?? 0,
+      level: profile.level ?? 1,
       updated_at: new Date().toISOString()
     },
     { onConflict: 'id' }
   )
 }
 
+export async function updateProfileXp(userId: string, xp: number, level: number): Promise<void> {
+  await supabase.from('profiles').update({
+    xp,
+    level,
+    updated_at: new Date().toISOString()
+  }).eq('id', userId)
+}
+
 export async function updateProfileMeta(
   userId: string,
-  meta: { setupComplete?: boolean; lastWorkoutDay?: WorkoutDay; lastWorkoutDate?: string; currentDay?: WorkoutDay }
+  meta: { setupComplete?: boolean; lastWorkoutDay?: WorkoutDay; lastWorkoutDate?: string; currentDay?: WorkoutDay; xp?: number; level?: number }
 ): Promise<void> {
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
   if (meta.setupComplete !== undefined) updates.setup_complete = meta.setupComplete
   if (meta.lastWorkoutDay !== undefined) updates.last_workout_day = meta.lastWorkoutDay
   if (meta.lastWorkoutDate !== undefined) updates.last_workout_date = meta.lastWorkoutDate
   if (meta.currentDay !== undefined) updates.current_day = meta.currentDay
+  if (meta.xp !== undefined) updates.xp = meta.xp
+  if (meta.level !== undefined) updates.level = meta.level
   await supabase.from('profiles').update(updates).eq('id', userId)
 }
 
@@ -353,6 +367,10 @@ export async function updateWorkout(userId: string, session: WorkoutSession): Pr
       completed_at: session.completedAt ? new Date(session.completedAt).toISOString() : new Date().toISOString(),
       notes: session.notes ?? null
     }).eq('id', session.id).eq('user_id', userId)
+  } else if (session.status === 'abandoned') {
+    await supabase.from('workouts').update({
+      status: 'abandoned'
+    }).eq('id', session.id).eq('user_id', userId)
   }
 
   for (let i = 0; i < session.exercises.length; i++) {
@@ -520,7 +538,9 @@ export async function loadAllData(userId: string): Promise<{
         restTimerT3: profileRow.data.rest_timer_t3,
         dayStructure: (profileRow.data.day_structure as UserProfile['dayStructure']) ?? undefined,
         currentDay: (profileRow.data.current_day as UserProfile['currentDay']) ?? undefined,
-        customExercises: (profileRow.data.custom_exercises as UserProfile['customExercises']) ?? undefined
+        customExercises: (profileRow.data.custom_exercises as UserProfile['customExercises']) ?? undefined,
+        xp: profileRow.data.xp ?? 0,
+        level: profileRow.data.level ?? 1
       }
     : null
 

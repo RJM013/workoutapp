@@ -28,21 +28,21 @@ export default function WarmUpSection({ workingWeight, scheme, units = 'lbs' }: 
     <div className="mb-4">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="text-slate-400 text-sm hover:text-slate-300 flex items-center gap-2"
+        className="text-[var(--color-text-secondary)] text-sm hover:text-[var(--color-text-secondary)] flex items-center gap-2"
       >
         {expanded ? '▼' : '▶'} Warm-up sets
       </button>
       {expanded && (
-        <div className="mt-2 p-4 rounded-xl bg-slate-800/50 text-sm">
-          <p className="text-slate-400 mb-2">Working weight: {workingWeight} {units} ({scheme})</p>
-          <ul className="space-y-1 text-slate-300">
+        <div className="mt-2 p-4 rounded-xl bg-[var(--color-bg-surface)]/50 text-sm">
+          <p className="text-[var(--color-text-secondary)] mb-2">Working weight: {workingWeight} {units} ({scheme})</p>
+          <ul className="space-y-1 text-[var(--color-text-secondary)]">
             {warmUps.map((w, i) => (
               <li key={i}>
                 {i + 1}. {w.weight} {units} × {w.reps} reps {w.label}
               </li>
             ))}
           </ul>
-          <p className="text-slate-500 text-xs mt-2">→ Begin working sets: {workingWeight} {units} × {scheme}</p>
+          <p className="text-[var(--color-text-muted)] text-xs mt-2">→ Begin working sets: {workingWeight} {units} × {scheme}</p>
         </div>
       )}
     </div>

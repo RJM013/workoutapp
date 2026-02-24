@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { hapticTimerComplete, hapticTap } from '../lib/haptic'
 
 interface RestTimerProps {
   duration: number
@@ -28,9 +29,7 @@ export default function RestTimer({ duration, onComplete, onSkip, active, haptic
         completedRef.current = true
         clearInterval(intervalRef.current)
         intervalRef.current = null
-        if (hapticOnComplete && navigator.vibrate) {
-          navigator.vibrate([100, 50, 100])
-        }
+        if (hapticOnComplete) hapticTimerComplete()
         onComplete?.()
       }
     }, 100)
@@ -82,7 +81,10 @@ export default function RestTimer({ duration, onComplete, onSkip, active, haptic
           </div>
         </div>
         <button
-          onClick={onSkip}
+          onClick={() => {
+            hapticTap()
+            onSkip?.()
+          }}
           className="px-4 py-2 rounded-lg bg-[var(--color-bg-surface-raised)] hover:bg-[var(--color-bg-surface-overlay)] text-[var(--color-text-secondary)] text-sm border border-[var(--color-border-subtle)]"
         >
           Skip

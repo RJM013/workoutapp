@@ -89,46 +89,46 @@ export default function Stats() {
   return (
     <div className="max-w-lg mx-auto p-6 pb-24">
       <header className="flex justify-between items-center mb-6">
-        <Link to="/" className="text-slate-400 hover:text-slate-200">← Back</Link>
-        <h1 className="text-xl font-bold text-slate-100">Stats</h1>
+        <Link to="/" className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">← Back</Link>
+        <h1 className="text-xl font-bold text-[var(--color-text-primary)]">Stats</h1>
         <div className="w-14" />
       </header>
 
       <div className="space-y-6">
-        <section className="p-4 rounded-xl bg-slate-800/50">
-          <h2 className="text-slate-200 font-semibold mb-3">Volume</h2>
+        <section className="p-4 rounded-xl bg-[var(--color-bg-surface)]/50">
+          <h2 className="text-[var(--color-text-primary)] font-semibold mb-3">Volume</h2>
           <div className="space-y-2 text-sm">
-            <p className="text-slate-300">All time: {totalVolumeAllTime.toLocaleString()} {profile?.units}×reps</p>
-            <p className="text-slate-300">This week: {totalVolumeThisWeek.toLocaleString()}</p>
-            <p className="text-slate-300">This month: {totalVolumeThisMonth.toLocaleString()}</p>
+            <p className="text-[var(--color-text-secondary)]">All time: {totalVolumeAllTime.toLocaleString()} {profile?.units}×reps</p>
+            <p className="text-[var(--color-text-secondary)]">This week: {totalVolumeThisWeek.toLocaleString()}</p>
+            <p className="text-[var(--color-text-secondary)]">This month: {totalVolumeThisMonth.toLocaleString()}</p>
           </div>
         </section>
 
-        <section className="p-4 rounded-xl bg-slate-800/50">
-          <h2 className="text-slate-200 font-semibold mb-3">Workouts</h2>
+        <section className="p-4 rounded-xl bg-[var(--color-bg-surface)]/50">
+          <h2 className="text-[var(--color-text-primary)] font-semibold mb-3">Workouts</h2>
           <div className="space-y-2 text-sm">
-            <p className="text-slate-300">This week: {weeklyWorkouts}/4</p>
-            <p className="text-slate-300">This month: {monthlyWorkouts}</p>
+            <p className="text-[var(--color-text-secondary)]">This week: {weeklyWorkouts}/4</p>
+            <p className="text-[var(--color-text-secondary)]">This month: {monthlyWorkouts}</p>
             {avgDuration != null && (
-              <p className="text-slate-300">Avg duration: {Math.round(avgDuration)} min</p>
+              <p className="text-[var(--color-text-secondary)]">Avg duration: {Math.round(avgDuration)} min</p>
             )}
           </div>
         </section>
 
-        <section className="p-4 rounded-xl bg-slate-800/50">
-          <h2 className="text-slate-200 font-semibold mb-3">Estimated 1RM</h2>
+        <section className="p-4 rounded-xl bg-[var(--color-bg-surface)]/50">
+          <h2 className="text-[var(--color-text-primary)] font-semibold mb-3">Estimated 1RM</h2>
           <div className="space-y-1 text-sm">
             {estimated1RM.map((r) => (
-              <p key={r.lift} className="text-slate-300">{r.lift}: {r.value} {profile?.units}</p>
+              <p key={r.lift} className="text-[var(--color-text-secondary)]">{r.lift}: {r.value} {profile?.units}</p>
             ))}
           </div>
         </section>
 
         {bodyweight.length > 0 && (
-          <section className="p-4 rounded-xl bg-slate-800/50">
-            <h2 className="text-slate-200 font-semibold mb-3">Body Weight</h2>
+          <section className="p-4 rounded-xl bg-[var(--color-bg-surface)]/50">
+            <h2 className="text-[var(--color-text-primary)] font-semibold mb-3">Body Weight</h2>
             {bodyweightAvg7d != null && (
-              <p className="text-slate-300 text-sm mb-2">7-day avg: {bodyweightAvg7d.toFixed(1)} {profile?.units}</p>
+              <p className="text-[var(--color-text-secondary)] text-sm mb-2">7-day avg: {bodyweightAvg7d.toFixed(1)} {profile?.units}</p>
             )}
             <div className="h-32">
               <ResponsiveContainer width="100%" height="100%">
@@ -145,7 +145,7 @@ export default function Stats() {
         )}
 
         {daysSinceLastWorkout != null && daysSinceLastWorkout > 2 && (
-          <p className="text-slate-500 text-sm">Days since last workout: {daysSinceLastWorkout}</p>
+          <p className="text-[var(--color-text-muted)] text-sm">Days since last workout: {daysSinceLastWorkout}</p>
         )}
       </div>
     </div>

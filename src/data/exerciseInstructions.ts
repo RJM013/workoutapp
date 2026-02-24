@@ -58,6 +58,22 @@ export const EXERCISE_INSTRUCTIONS: Record<string, ExerciseInstruction> = {
     ],
     breathing: 'Big breath in at the bottom, brace hard, pull, exhale at the top. Reset breath each rep.'
   },
+  'Romanian Deadlift': {
+    muscles: 'Hamstrings · Glutes · Lower Back',
+    equipment: 'Barbell, Dumbbells, or Kettlebell',
+    keyPoints: [
+      'Stand with feet hip-width, slight bend in knees',
+      'Hinge at hips, push butt back, keep back flat',
+      'Lower weight along legs until you feel a stretch in hamstrings',
+      'Drive hips forward to return to standing'
+    ],
+    commonMistakes: [
+      "Don't round your lower back — keep it flat throughout",
+      "Don't squat — this is a hinge; knees stay mostly straight",
+      "Don't go too deep if flexibility is limited — build range over time"
+    ],
+    breathing: 'Inhale as you lower, exhale as you drive up.'
+  },
   'Overhead Press': {
     muscles: 'Shoulders · Triceps · Upper Chest · Core',
     equipment: 'Barbell + Rack',
@@ -382,5 +398,14 @@ export const EXERCISE_INSTRUCTIONS: Record<string, ExerciseInstruction> = {
 EXERCISE_INSTRUCTIONS['OHP'] = EXERCISE_INSTRUCTIONS['Overhead Press']!
 
 export function getExerciseInstruction(name: string): ExerciseInstruction | null {
-  return EXERCISE_INSTRUCTIONS[name] ?? null
+  const aliases: Record<string, string> = {
+    'Smith Squat': 'Squat',
+    'Dumbbell OHP': 'Overhead Press',
+    'Barbell Squat': 'Squat',
+    'Barbell OHP': 'Overhead Press',
+    'DB Romanian Deadlift': 'Romanian Deadlift',
+    'Dumbbell Romanian Deadlift': 'Romanian Deadlift'
+  }
+  const resolved = aliases[name] ?? name
+  return EXERCISE_INSTRUCTIONS[resolved] ?? null
 }

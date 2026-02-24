@@ -100,21 +100,21 @@ export default function LiftDetail() {
   return (
     <div className="max-w-lg mx-auto p-6 pb-24">
       <header className="flex justify-between items-center mb-6">
-        <Link to="/" className="text-slate-400 hover:text-slate-200">← Back</Link>
-        <h1 className="text-xl font-bold text-slate-100">{decoded}</h1>
+        <Link to="/" className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">← Back</Link>
+        <h1 className="text-xl font-bold text-[var(--color-text-primary)]">{decoded}</h1>
         <div className="w-14" />
       </header>
 
-      <div className="mb-6 p-4 rounded-xl bg-slate-800/50">
+      <div className="mb-6 p-4 rounded-xl bg-[var(--color-bg-surface)]/50">
         <div className="flex justify-between text-sm mb-2">
-          <span className="text-slate-400">T1</span>
-          <span className="text-slate-100 font-semibold">{t1?.currentWeight ?? '—'} {profile?.units} ({t1?.currentScheme ?? '—'})</span>
+          <span className="text-[var(--color-text-secondary)]">T1</span>
+          <span className="text-[var(--color-text-primary)] font-semibold">{t1?.currentWeight ?? '—'} {profile?.units} ({t1?.currentScheme ?? '—'})</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-slate-400">T2</span>
-          <span className="text-slate-100 font-semibold">{t2?.currentWeight ?? '—'} {profile?.units} ({t2?.currentScheme ?? '—'})</span>
+          <span className="text-[var(--color-text-secondary)]">T2</span>
+          <span className="text-[var(--color-text-primary)] font-semibold">{t2?.currentWeight ?? '—'} {profile?.units} ({t2?.currentScheme ?? '—'})</span>
         </div>
-        <p className="text-slate-500 text-xs mt-2">All-time best T1: {allTimeBestT1} {profile?.units} · T2: {allTimeBestT2} {profile?.units}</p>
+        <p className="text-[var(--color-text-muted)] text-xs mt-2">All-time best T1: {allTimeBestT1} {profile?.units} · T2: {allTimeBestT2} {profile?.units}</p>
       </div>
 
       {chartData.length > 0 && (
@@ -136,42 +136,42 @@ export default function LiftDetail() {
       )}
 
       <div className="mb-6">
-        <h3 className="text-slate-200 font-semibold mb-2">T1 Progression</h3>
+        <h3 className="text-[var(--color-text-primary)] font-semibold mb-2">T1 Progression</h3>
         <div className="flex flex-wrap gap-2 items-center text-sm">
-          <span className={t1?.currentStage === 1 ? 'bg-emerald-600/50 px-2 py-1 rounded' : 'bg-slate-700 text-slate-400 px-2 py-1 rounded'}>5x3</span>
+          <span className={t1?.currentStage === 1 ? 'bg-emerald-600/50 px-2 py-1 rounded' : 'bg-[var(--color-bg-surface-raised)] text-[var(--color-text-secondary)] px-2 py-1 rounded'}>5x3</span>
           <span>→</span>
-          <span className={t1?.currentStage === 2 ? 'bg-amber-600/50 px-2 py-1 rounded' : 'bg-slate-700 text-slate-400 px-2 py-1 rounded'}>6x2</span>
+          <span className={t1?.currentStage === 2 ? 'bg-amber-600/50 px-2 py-1 rounded' : 'bg-[var(--color-bg-surface-raised)] text-[var(--color-text-secondary)] px-2 py-1 rounded'}>6x2</span>
           <span>→</span>
-          <span className={t1?.currentStage === 3 ? 'bg-amber-600/50 px-2 py-1 rounded' : 'bg-slate-700 text-slate-400 px-2 py-1 rounded'}>10x1</span>
+          <span className={t1?.currentStage === 3 ? 'bg-amber-600/50 px-2 py-1 rounded' : 'bg-[var(--color-bg-surface-raised)] text-[var(--color-text-secondary)] px-2 py-1 rounded'}>10x1</span>
           <span>→</span>
-          <span className="bg-slate-700 text-slate-400 px-2 py-1 rounded">Reset</span>
+          <span className="bg-[var(--color-bg-surface-raised)] text-[var(--color-text-secondary)] px-2 py-1 rounded">Reset</span>
         </div>
-        <p className="text-slate-500 text-xs mt-2">
+        <p className="text-[var(--color-text-muted)] text-xs mt-2">
           You are here: Stage {t1?.currentStage ?? 1} at {t1?.currentWeight ?? '—'} {profile?.units}
         </p>
       </div>
 
       <div className="mb-6">
-        <h3 className="text-slate-200 font-semibold mb-2">Progression History</h3>
+        <h3 className="text-[var(--color-text-primary)] font-semibold mb-2">Progression History</h3>
         <div className="space-y-3 max-h-64 overflow-y-auto">
           {[...events, ...eventsT2]
             .sort((a, b) => b.createdAt - a.createdAt)
             .slice(0, 20)
             .map((e) => (
-              <div key={e.id} className="text-sm border-b border-slate-700 pb-2">
-                <span className="text-slate-400">{new Date(e.createdAt).toLocaleDateString()}</span>
+              <div key={e.id} className="text-sm border-b border-[var(--color-border-subtle)] pb-2">
+                <span className="text-[var(--color-text-secondary)]">{new Date(e.createdAt).toLocaleDateString()}</span>
                 <span className="ml-2">{EVENT_ICONS[e.eventType] ?? '•'}</span>
-                <span className="ml-2 text-slate-200">
+                <span className="ml-2 text-[var(--color-text-primary)]">
                   {e.toWeight ?? e.fromWeight} {profile?.units} ({e.details?.scheme as string ?? ''})
                 </span>
-                <span className="ml-2 text-slate-500">
+                <span className="ml-2 text-[var(--color-text-muted)]">
                   {e.eventType === 'weight_increased' && 'Added weight after completing'}
                   {e.eventType === 'session_failed' && `Failed (${(e.details?.setsCompleted as number[])?.join(',') ?? ''})`}
                   {e.eventType === 'stage_advanced' && `Stage advance: ${String(e.details?.nextScheme ?? '')}`}
                   {e.eventType === 'reset' && `RESET: ${String(e.details?.formula ?? '')}`}
                 </span>
                 {e.details?.formula != null && (
-                  <p className="text-slate-500 text-xs mt-1 ml-6">{String(e.details.formula)}</p>
+                  <p className="text-[var(--color-text-muted)] text-xs mt-1 ml-6">{String(e.details.formula)}</p>
                 )}
               </div>
             ))}
@@ -179,10 +179,10 @@ export default function LiftDetail() {
       </div>
 
       <div>
-        <h3 className="text-slate-200 font-semibold mb-2">Session History</h3>
+        <h3 className="text-[var(--color-text-primary)] font-semibold mb-2">Session History</h3>
         <div className="space-y-2 max-h-48 overflow-y-auto">
           {sessionHistory.map((s, i) => (
-            <div key={i} className="flex justify-between text-sm text-slate-300">
+            <div key={i} className="flex justify-between text-sm text-[var(--color-text-secondary)]">
               <span>{s.date}</span>
               <span>{s.tier} {s.weight}×{s.scheme}</span>
               <span>{s.reps}</span>

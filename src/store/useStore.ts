@@ -40,7 +40,7 @@ interface AppState {
   completeSet: (exerciseIndex: number, setIndex: number, actualReps?: number) => Promise<void>
   completeT3Amrap: (exerciseIndex: number, reps: number) => Promise<void>
   nextExercise: () => void
-  finishWorkout: () => Promise<{ exerciseName: string; tier?: string; recordType: string }[]>
+  finishWorkout: () => Promise<{ prs: { exerciseName: string; tier?: string; recordType: string }[]; xpEarned: number }>
   getLiftState: (liftName: string, tier: 'T1' | 'T2') => LiftState | undefined
   getT3State: (liftName: string) => T3LiftState | undefined
   updateLiftOverride: (liftName: string, tier: 'T1' | 'T2', weight: number, stage?: number) => Promise<void>
@@ -55,6 +55,7 @@ interface AppState {
   getPersonalRecords: () => Promise<PersonalRecord[]>
   getCompletedWorkouts: () => Promise<WorkoutSession[]>
   getWorkoutById: (id: string) => Promise<WorkoutSession | null>
+  abandonWorkout: () => Promise<void>
 }
 
 export const useStore = create<AppState>()(
@@ -85,7 +86,9 @@ export const useStore = create<AppState>()(
         const mergedProfile = {
           ...DEFAULT_PROFILE,
           ...profile,
-          dayStructure: profile.dayStructure ?? DEFAULT_DAY_STRUCTURE as DayStructure
+          dayStructure: profile.dayStructure ?? DEFAULT_DAY_STRUCTURE as DayStructure,
+          xp: profile.xp ?? 0,
+          level: profile.level ?? 1
         }
         set({
           userId,
@@ -290,10 +293,10 @@ export const useStore = create<AppState>()(
     finishWorkout: async () => {
       const userId = get().userId
       const session = get().activeSession
-      if (!userId || !session) return []
+      if (!userId || !session) return { prs: [], xpEarned: 0 }
 
       const { profile, lifts, t3Lifts } = get()
-      if (!profile) return []
+      if (!profile) return { prs: [], xpEarned: 0 }
 
       const newLifts = new Map(lifts)
       const newT3Lifts = new Map(t3Lifts)
@@ -392,8 +395,25 @@ export const useStore = create<AppState>()(
       await api.updateWorkout(userId, completedSession)
       await api.updateProfileMeta(userId, { lastWorkoutDay: session.day, lastWorkoutDate: session.date })
 
-      set({ activeSession: null, lifts: newLifts, t3Lifts: newT3Lifts, lastWorkoutDay: session.day, lastWorkoutDate: session.date })
-      return prsHit
+      // Gamification: XP (50 base + 25 per PR + 10 per T3 AMRAP 25+)
+      let xpEarned = 50
+      xpEarned += prsHit.length * 25
+      const t3Amrap25Count = session.exercises.filter((ex) => ex.tier === 'T3' && (ex.sets[2]?.actualReps ?? 0) >= 25).length
+      xpEarned += t3Amrap25Count * 10
+      const currentXp = profile.xp ?? 0
+      const newXp = currentXp + xpEarned
+      const newLevel = Math.floor(newXp / 100) + 1
+      await api.updateProfileXp(userId, newXp, newLevel)
+      set({
+        activeSession: null,
+        lifts: newLifts,
+        t3Lifts: newT3Lifts,
+        lastWorkoutDay: session.day,
+        lastWorkoutDate: session.date,
+        profile: { ...profile, xp: newXp, level: newLevel }
+      })
+
+      return { prs: prsHit, xpEarned }
     },
 
     getLiftState: (liftName, tier) => get().lifts.get(getLiftId(liftName, tier)),
@@ -468,7 +488,9 @@ export const useStore = create<AppState>()(
           restTimerT3: p.restTimerT3,
           dayStructure: p.dayStructure,
           currentDay: p.currentDay,
-          customExercises: p.customExercises
+          customExercises: p.customExercises,
+          xp: p.xp ?? 0,
+          level: p.level ?? 1
         })
       }
       if (data.lifts?.length) {
@@ -498,7 +520,7 @@ export const useStore = create<AppState>()(
       await supabase.from('progression_events').delete().eq('user_id', userId)
       await supabase.from('bodyweight_log').delete().eq('user_id', userId)
       await supabase.from('personal_records').delete().eq('user_id', userId)
-      await api.updateProfileMeta(userId, { setupComplete: false, lastWorkoutDay: undefined, lastWorkoutDate: undefined })
+      await api.updateProfileMeta(userId, { setupComplete: false, lastWorkoutDay: undefined, lastWorkoutDate: undefined, xp: 0, level: 1 })
       set({ profile: null, lifts: new Map(), t3Lifts: new Map(), setupComplete: false, activeSession: null })
     },
 
@@ -543,6 +565,15 @@ export const useStore = create<AppState>()(
       const userId = get().userId
       if (!userId) return null
       return api.getWorkoutById(userId, id)
+    },
+
+    abandonWorkout: async () => {
+      const userId = get().userId
+      const session = get().activeSession
+      if (!userId || !session) return
+      const abandoned = { ...session, status: 'abandoned' as const }
+      await api.updateWorkout(userId, abandoned)
+      set({ activeSession: null })
     }
   }))
 )

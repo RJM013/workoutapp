@@ -36,17 +36,17 @@ export default function LiftOverviewCard({ liftName }: LiftOverviewCardProps) {
   return (
     <Link
       to={`/lift/${encodeURIComponent(liftName)}`}
-      className={`block rounded-xl p-4 bg-slate-800/50 border-2 ${borderColor} hover:bg-slate-800/70 transition-colors`}
+      className={`block rounded-xl p-4 bg-[var(--color-bg-surface)]/50 border-2 ${borderColor} hover:bg-[var(--color-bg-surface)]/70 transition-colors`}
     >
-      <h3 className="font-bold text-slate-100 uppercase text-sm mb-2">{liftName}</h3>
+      <h3 className="font-bold text-[var(--color-text-primary)] uppercase text-sm mb-2">{liftName}</h3>
       <div className="space-y-1 text-sm">
         {t1 && (
-          <p className="text-slate-300">
+          <p className="text-[var(--color-text-secondary)]">
             T1: {t1.currentWeight} {profile?.units} — Stage {t1.currentStage} ({t1.currentScheme})
           </p>
         )}
         {t2 && (
-          <p className="text-slate-300">
+          <p className="text-[var(--color-text-secondary)]">
             T2: {t2.currentWeight} {profile?.units} — Stage {t2.currentStage} ({t2.currentScheme})
           </p>
         )}
@@ -54,12 +54,12 @@ export default function LiftOverviewCard({ liftName }: LiftOverviewCardProps) {
           <p className="text-emerald-400 text-xs">▲ +{gain} {profile?.units} since start</p>
         )}
         {lastDate && (
-          <p className="text-slate-500 text-xs">
+          <p className="text-[var(--color-text-muted)] text-xs">
             Last session: {lastDate} {lastSession?.completed ? '✅' : '❌'}
           </p>
         )}
         {streak > 0 && (
-          <p className="text-slate-500 text-xs">Streak: {streak} sessions without fail</p>
+          <p className="text-[var(--color-text-muted)] text-xs">Streak: {streak} sessions without fail</p>
         )}
       </div>
     </Link>
