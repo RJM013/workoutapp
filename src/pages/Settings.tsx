@@ -11,6 +11,8 @@ export default function Settings() {
   const [exported, setExported] = useState('')
   const [importText, setImportText] = useState('')
   const [showReset, setShowReset] = useState(false)
+  const [resetConfirmText, setResetConfirmText] = useState('')
+  const [hapticEnabled, setHapticEnabled] = useState(() => localStorage.getItem('hapticEnabled') !== 'false')
 
   const handleSaveUnits = () => {
     if (profile) saveProfile({ ...profile, units: units as 'lbs' | 'kg' })
@@ -40,9 +42,17 @@ export default function Settings() {
     }
   }
 
+  const handleHapticToggle = () => {
+    const next = !hapticEnabled
+    setHapticEnabled(next)
+    localStorage.setItem('hapticEnabled', String(next))
+  }
+
   const handleReset = async () => {
+    if (resetConfirmText !== 'RESET') return
     await resetAll()
     setShowReset(false)
+    setResetConfirmText('')
     window.location.href = '/setup'
   }
 
@@ -169,27 +179,49 @@ export default function Settings() {
       </section>
 
       <section className="mb-8">
-        <h2 className="text-lg font-semibold text-slate-200 mb-4">Reset</h2>
+        <h2 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">Preferences</h2>
+        <label className="flex items-center justify-between py-2">
+          <span className="text-[var(--color-text-secondary)]">Haptic feedback</span>
+          <input
+            type="checkbox"
+            checked={hapticEnabled}
+            onChange={handleHapticToggle}
+            className="w-5 h-5 rounded"
+          />
+        </label>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">Reset</h2>
         {!showReset ? (
           <button
             onClick={() => setShowReset(true)}
-            className="w-full py-3 rounded-xl bg-red-900/50 hover:bg-red-900/70 text-red-300"
+            className="w-full py-3 rounded-xl bg-[var(--color-accent-fail)]/20 hover:bg-[var(--color-accent-fail)]/30 text-[var(--color-accent-fail)] border border-[var(--color-accent-fail)]/50"
           >
             Reset all data
           </button>
         ) : (
-          <div className="p-4 rounded-xl bg-slate-800 border border-red-900/50">
-            <p className="text-slate-300 mb-4">This will delete all data. Are you sure?</p>
+          <div className="p-4 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-accent-fail)]/50">
+            <p className="text-[var(--color-text-primary)] mb-2">Are you sure?</p>
+            <p className="text-[var(--color-text-muted)] text-sm mb-4">This cannot be undone. Type RESET to confirm.</p>
+            <input
+              type="text"
+              value={resetConfirmText}
+              onChange={(e) => setResetConfirmText(e.target.value.toUpperCase())}
+              placeholder="Type RESET"
+              className="w-full px-4 py-3 rounded-lg bg-[var(--color-bg-surface-raised)] text-[var(--color-text-primary)] mb-4 border border-[var(--color-border-subtle)]"
+            />
             <div className="flex gap-3">
               <button
-                onClick={() => setShowReset(false)}
-                className="flex-1 py-2 rounded-lg bg-slate-700 text-slate-300"
+                onClick={() => { setShowReset(false); setResetConfirmText('') }}
+                className="flex-1 py-2 rounded-lg bg-[var(--color-bg-surface-raised)] text-[var(--color-text-secondary)] border border-[var(--color-border-subtle)]"
               >
                 Cancel
               </button>
               <button
                 onClick={handleReset}
-                className="flex-1 py-2 rounded-lg bg-red-600 text-white"
+                disabled={resetConfirmText !== 'RESET'}
+                className="flex-1 py-2 rounded-lg bg-[var(--color-accent-fail)] text-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Reset
               </button>

@@ -1,5 +1,5 @@
 import type { T1Scheme, T2Scheme } from '../types'
-import { roundToNearest5 } from './weightUtils'
+import { addWeight, resetWeight } from './weightUtils'
 
 const T1_SCHEMES: T1Scheme[] = ['5x3', '6x2', '10x1']
 const T2_SCHEMES: T2Scheme[] = ['3x10', '3x8', '3x6']
@@ -28,11 +28,13 @@ export function computeT1Progression(
   currentWeight: number,
   currentStage: 1 | 2 | 3,
   completed: boolean,
-  increment: number
+  increment: number,
+  rounding: number
 ): T1ProgressionResult {
   if (completed) {
+    const newWeight = addWeight(currentWeight, increment, rounding)
     return {
-      newWeight: currentWeight + increment,
+      newWeight,
       newStage: currentStage,
       newScheme: getT1Scheme(currentStage),
       message: `Adding ${increment} lbs next session`
@@ -47,12 +49,12 @@ export function computeT1Progression(
       message: `Moving to ${getT1Scheme(nextStage)} next session`
     }
   }
-  const resetWeight = roundToNearest5(currentWeight * 0.85)
+  const newWeight = resetWeight(currentWeight, rounding)
   return {
-    newWeight: resetWeight,
+    newWeight,
     newStage: 1,
     newScheme: '5x3',
-    message: `Reset to 85% → ${resetWeight} lbs at 5x3`
+    message: `Reset to 85% → ${newWeight} lbs at 5x3`
   }
 }
 
@@ -67,11 +69,13 @@ export function computeT2Progression(
   currentWeight: number,
   currentStage: 1 | 2 | 3,
   completed: boolean,
-  increment: number
+  increment: number,
+  rounding: number
 ): T2ProgressionResult {
   if (completed) {
+    const newWeight = addWeight(currentWeight, increment, rounding)
     return {
-      newWeight: currentWeight + increment,
+      newWeight,
       newStage: currentStage,
       newScheme: getT2Scheme(currentStage),
       message: `Adding ${increment} lbs next session`
@@ -86,11 +90,11 @@ export function computeT2Progression(
       message: `Moving to ${getT2Scheme(nextStage)} next session`
     }
   }
-  const resetWeight = roundToNearest5(currentWeight * 0.85)
+  const newWeight = resetWeight(currentWeight, rounding)
   return {
-    newWeight: resetWeight,
+    newWeight,
     newStage: 1,
     newScheme: '3x10',
-    message: `Reset to 85% → ${resetWeight} lbs at 3x10`
+    message: `Reset to 85% → ${newWeight} lbs at 3x10`
   }
 }

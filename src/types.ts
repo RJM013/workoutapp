@@ -9,12 +9,31 @@ export const T2_SCHEMES = ['3x10', '3x8', '3x6'] as const
 export type T1Scheme = typeof T1_SCHEMES[number]
 export type T2Scheme = typeof T2_SCHEMES[number]
 
+/** Phase 3: Configurable T1/T2 assignments per day (exercise names) */
+export type DayStructure = Record<WorkoutDay, { t1: string; t2: string }>
+
+export interface CustomExerciseDefinition {
+  name: string
+  equipment: string
+  movementPattern: string
+  muscleGroup: string
+  increment: number
+  rounding: number
+  allowedTiers: ('T1' | 'T2')[]
+}
+
 export interface UserProfile {
   units: Units
   t3Exercises: Record<WorkoutDay, string[]>
   restTimerT1: number // seconds
   restTimerT2: number
   restTimerT3: number
+  /** Phase 3: Configurable T1/T2 per day */
+  dayStructure?: DayStructure
+  /** Phase 3: Next day in rotation */
+  currentDay?: WorkoutDay
+  /** Phase 3: User-added exercises */
+  customExercises?: CustomExerciseDefinition[]
 }
 
 export interface LiftHistoryEntry {
@@ -40,12 +59,20 @@ export interface LiftState {
   currentStage: 1 | 2 | 3
   currentScheme: T1Scheme | T2Scheme
   increment: number
+  /** Phase 3: Per-exercise rounding (5 or 10 for dumbbells) */
+  rounding: number
   history: LiftHistoryEntry[]
 }
 
 export interface T3LiftState {
   liftName: string
   currentWeight: number
+  /** Phase 3: Default 5 */
+  increment?: number
+  /** Phase 3: Bodyweight exercises — display "BW" or "BW + 25" */
+  isBodyweight?: boolean
+  /** Phase 3: Plank-style — track seconds not reps */
+  trackDuration?: boolean
   history: T3HistoryEntry[]
 }
 
@@ -70,9 +97,11 @@ export interface WorkoutSession {
   date: string
   startTime: number
   exercises: WorkoutExercise[]
-  status: 'in_progress' | 'completed'
+  status: 'in_progress' | 'completed' | 'abandoned'
   notes?: string
   completedAt?: number
+  /** Phase 3: Total duration in seconds */
+  totalDuration?: number
 }
 
 export type ProgressionEventType =
@@ -113,9 +142,11 @@ export interface PersonalRecord {
   achievedAt: number
 }
 
+/** @deprecated Use dayStructure from profile. Kept for migration. */
 export const MAIN_LIFTS = ['Squat', 'Bench Press', 'OHP', 'Deadlift'] as const
 export type MainLift = typeof MAIN_LIFTS[number]
 
+/** @deprecated Use profile.dayStructure. Kept for migration. */
 export const DAY_STRUCTURE: Record<WorkoutDay, { t1: MainLift; t2: MainLift }> = {
   A1: { t1: 'Squat', t2: 'Bench Press' },
   B1: { t1: 'OHP', t2: 'Deadlift' },
@@ -123,6 +154,7 @@ export const DAY_STRUCTURE: Record<WorkoutDay, { t1: MainLift; t2: MainLift }> =
   B2: { t1: 'Deadlift', t2: 'OHP' }
 }
 
+/** @deprecated Use T3_LIBRARY from exerciseRegistry. Kept for backward compatibility. */
 export const T3_LIBRARY: Record<string, string[]> = {
   Pull: ['Lat Pulldown', 'Dumbbell Row', 'Cable Row', 'Barbell Row', 'Pull-Up', 'Chin-Up', 'Face Pull'],
   Push: ['Dumbbell Bench Press', 'Incline Dumbbell Press', 'Dips', 'Tricep Pushdown', 'Overhead Tricep Extension'],

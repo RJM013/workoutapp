@@ -34,8 +34,9 @@ export default function WorkoutSummary() {
           if (ex.tier === 'T1') {
             const state = getLiftState(ex.liftName, 'T1')
             const completed = ex.sets.every((s) => s.completed && (s.actualReps ?? 0) >= s.targetReps)
+            const rounding = state?.rounding ?? 5
             const result = state
-              ? computeT1Progression(ex.targetWeight, state.currentStage, completed, state.increment)
+              ? computeT1Progression(ex.targetWeight, state.currentStage, completed, state.increment, rounding)
               : null
             return (
               <div key={ex.liftName} className="p-4 rounded-xl bg-slate-800/50">
@@ -54,8 +55,9 @@ export default function WorkoutSummary() {
           if (ex.tier === 'T2') {
             const state = getLiftState(ex.liftName, 'T2')
             const completed = ex.sets.every((s) => s.completed && (s.actualReps ?? 0) >= s.targetReps)
+            const rounding = state?.rounding ?? 5
             const result = state
-              ? computeT2Progression(ex.targetWeight, state.currentStage, completed, state.increment)
+              ? computeT2Progression(ex.targetWeight, state.currentStage, completed, state.increment, rounding)
               : null
             return (
               <div key={ex.liftName} className="p-4 rounded-xl bg-slate-800/50">
@@ -73,6 +75,8 @@ export default function WorkoutSummary() {
           }
           const amrap = ex.sets[2]?.actualReps ?? 0
           const hit25 = amrap >= 25
+          const t3State = useStore.getState().getT3State(ex.liftName)
+          const nextWeight = hit25 && t3State ? t3State.currentWeight : ex.targetWeight
           return (
             <div key={ex.liftName} className="p-4 rounded-xl bg-slate-800/50">
               <h3 className="font-semibold text-slate-200">{ex.liftName} (T3)</h3>
@@ -81,7 +85,7 @@ export default function WorkoutSummary() {
                 {hit25 && ' 🎉'}
               </p>
               <p className="text-slate-400 text-sm mt-2">
-                → Next session: {hit25 ? `${ex.targetWeight + 5} ${profile?.units} — AMRAP threshold reached!` : `same weight — hit 25 on AMRAP to increase`}
+                → Next session: {hit25 ? `${nextWeight} ${profile?.units} — AMRAP threshold reached!` : `same weight — hit 25 on AMRAP to increase`}
               </p>
             </div>
           )

@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
-import { DAY_STRUCTURE, MAIN_LIFTS } from '../types'
+import { DEFAULT_DAY_STRUCTURE } from '../data/exerciseRegistry'
 import LiftOverviewCard from '../components/LiftOverviewCard'
-import { db } from '../lib/db'
-import type { WorkoutSession } from '../types'
+import type { WorkoutSession, DayStructure } from '../types'
 
 export default function Home() {
   const navigate = useNavigate()
-  const { profile, lifts, getNextWorkoutDay, startWorkout, lastWorkoutDate, getT3State } = useStore()
+  const { profile, lifts, getNextWorkoutDay, startWorkout, lastWorkoutDate, getT3State, getCompletedWorkouts } = useStore()
   const [recentSessions, setRecentSessions] = useState<WorkoutSession[]>([])
   const [bodyweight, setBodyweight] = useState('')
   const [consecutiveDays, setConsecutiveDays] = useState(0)
@@ -16,27 +15,19 @@ export default function Home() {
   const nextDay = getNextWorkoutDay()
   const today = new Date().toISOString().slice(0, 10)
   const isRestDay = lastWorkoutDate === today
-  const { t1, t2 } = DAY_STRUCTURE[nextDay]
+  const dayStructure = (profile?.dayStructure ?? DEFAULT_DAY_STRUCTURE) as DayStructure
+  const { t1, t2 } = dayStructure[nextDay]
   const t3Names = profile?.t3Exercises[nextDay] ?? []
   const t1State = lifts.get(`${t1}-T1`)
   const t2State = lifts.get(`${t2}-T2`)
 
   useEffect(() => {
-    db.sessions
-      .where('status')
-      .equals('completed')
-      .toArray()
-      .then((s) => s.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10))
-      .then(setRecentSessions)
-  }, [lastWorkoutDate])
+    getCompletedWorkouts().then((s) => setRecentSessions(s.slice(0, 10)))
+  }, [lastWorkoutDate, getCompletedWorkouts])
 
   useEffect(() => {
     if (!lastWorkoutDate) return
-    db.sessions
-      .where('status')
-      .equals('completed')
-      .toArray()
-      .then((s) => {
+    getCompletedWorkouts().then((s) => {
         const dateSet = new Set(s.map((w) => w.date))
         let count = 0
         let checkDate = lastWorkoutDate
@@ -48,7 +39,7 @@ export default function Home() {
         }
         setConsecutiveDays(count)
       })
-  }, [lastWorkoutDate])
+  }, [lastWorkoutDate, getCompletedWorkouts])
 
   const handleStart = async () => {
     await startWorkout()
@@ -142,7 +133,7 @@ export default function Home() {
       <div className="mb-6">
         <h3 className="text-slate-200 font-semibold mb-3">Lift Overview</h3>
         <div className="grid grid-cols-2 gap-3">
-          {MAIN_LIFTS.map((lift) => (
+          {Array.from(new Set([dayStructure.A1.t1, dayStructure.B1.t1, dayStructure.A2.t1, dayStructure.B2.t1])).map((lift) => (
             <LiftOverviewCard key={lift} liftName={lift} />
           ))}
         </div>

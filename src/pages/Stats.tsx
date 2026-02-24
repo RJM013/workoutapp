@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useStore } from '../store/useStore'
-import { db } from '../lib/db'
 import { MAIN_LIFTS } from '../types'
 
 function epley1RM(weight: number, reps: number): number {
@@ -10,19 +9,14 @@ function epley1RM(weight: number, reps: number): number {
 }
 
 export default function Stats() {
-  const { profile, lifts, lastWorkoutDate, getBodyweightLog } = useStore()
+  const { profile, lifts, lastWorkoutDate, getBodyweightLog, getCompletedWorkouts } = useStore()
   const [sessions, setSessions] = useState<{ date: string; duration?: number; volume: number }[]>([])
   const [bodyweight, setBodyweight] = useState<{ weight: number; loggedAt: string }[]>([])
   const [weeklyWorkouts, setWeeklyWorkouts] = useState(0)
   const [monthlyWorkouts, setMonthlyWorkouts] = useState(0)
 
   useEffect(() => {
-    db.sessions
-      .where('status')
-      .equals('completed')
-      .toArray()
-      .then((s) => s.sort((a, b) => b.date.localeCompare(a.date)))
-      .then((s) => {
+    getCompletedWorkouts().then((s) => {
         const now = new Date()
         const weekStart = new Date(now)
         weekStart.setDate(now.getDate() - now.getDay())
@@ -44,7 +38,7 @@ export default function Stats() {
         })
       })
       .then(setSessions)
-  }, [])
+  }, [getCompletedWorkouts])
 
   useEffect(() => {
     getBodyweightLog().then(setBodyweight)

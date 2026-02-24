@@ -1,18 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useStore } from '../store/useStore'
-import { db } from '../lib/db'
 import type { WorkoutSession } from '../types'
 
 export default function WorkoutDetail() {
   const { id } = useParams<{ id: string }>()
-  const { profile } = useStore()
+  const { profile, getWorkoutById } = useStore()
   const [session, setSession] = useState<WorkoutSession | null>(null)
 
   useEffect(() => {
     if (!id) return
-    db.sessions.get(id).then((s) => setSession(s ?? null))
-  }, [id])
+    getWorkoutById(id).then((s) => setSession(s ?? null))
+  }, [id, getWorkoutById])
 
   if (!session) return null
 

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useStore } from './store/useStore'
+import BottomNav from './components/BottomNav'
 import Setup from './pages/Setup'
 import Home from './pages/Home'
 import Workout from './pages/Workout'
@@ -13,8 +14,12 @@ import LearnGZCLP from './pages/LearnGZCLP'
 import ExerciseLibrary from './pages/ExerciseLibrary'
 import WorkoutDetail from './pages/WorkoutDetail'
 
+const BOTTOM_NAV_ROUTES = ['/', '/history', '/settings']
+
 function App() {
   const { loadData, setupComplete, isLoading, activeSession } = useStore()
+  const location = useLocation()
+  const showBottomNav = BOTTOM_NAV_ROUTES.includes(location.pathname)
 
   useEffect(() => {
     loadData()
@@ -22,14 +27,14 @@ function App() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-slate-400 text-lg">Loading...</div>
+      <div className="min-h-screen bg-[var(--color-bg-base)] flex items-center justify-center">
+        <div className="text-[var(--color-text-secondary)] text-lg">Loading...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100">
+    <div className="min-h-screen bg-[var(--color-bg-base)] text-[var(--color-text-primary)]">
       <Routes>
         <Route path="/" element={
           !setupComplete ? <Navigate to="/setup" replace /> :
@@ -51,6 +56,7 @@ function App() {
         <Route path="/learn" element={<LearnGZCLP />} />
         <Route path="/exercises" element={<ExerciseLibrary />} />
       </Routes>
+      {showBottomNav && <BottomNav />}
     </div>
   )
 }

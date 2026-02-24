@@ -1,9 +1,30 @@
 @import "tailwindcss";
 
+/* Phase 3 GZCLP Design System */
 @theme {
-  --font-sans: "DM Sans", system-ui, sans-serif;
+  --font-sans: "SF Pro Display", "Inter", -apple-system, system-ui, sans-serif;
+
+  /* Background layers */
+  --color-bg-base: #0D0D0D;
+  --color-bg-surface: #1A1A1A;
+  --color-bg-surface-raised: #242424;
+  --color-bg-surface-overlay: #2E2E2E;
+
+  /* Text */
+  --color-text-primary: #E8E8E8;
+  --color-text-secondary: #8A8A8A;
+  --color-text-muted: #555555;
+
+  /* Accents (functional only) */
+  --color-accent-success: #4ADE80;
+  --color-accent-fail: #F97316;
+  --color-accent-active: #A78BFA;
+  --color-accent-info: #60A5FA;
+  --color-border-subtle: #2A2A2A;
 }
 
 body {
   font-family: var(--font-sans);
+  background-color: var(--color-bg-base);
+  color: var(--color-text-primary);
 }

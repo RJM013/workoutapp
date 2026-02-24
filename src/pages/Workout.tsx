@@ -5,7 +5,9 @@ import RestTimer from '../components/RestTimer'
 import ExerciseInfoModal from '../components/ExerciseInfoModal'
 import PlateCalculator from '../components/PlateCalculator'
 import WarmUpSection from '../components/WarmUpSection'
+import { getExerciseDefinition } from '../data/exerciseRegistry'
 import { computeT1Progression, computeT2Progression } from '../lib/progression'
+import { formatWeightForDisplay } from '../lib/weightUtils'
 import type { WorkoutExercise } from '../types'
 
 function formatDuration(ms: number): string {
@@ -25,6 +27,7 @@ export default function Workout() {
   const [showExerciseInfo, setShowExerciseInfo] = useState(false)
   const [showPlateCalc, setShowPlateCalc] = useState(false)
   const [elapsed, setElapsed] = useState(0)
+  const hapticEnabled = typeof localStorage !== 'undefined' && localStorage.getItem('hapticEnabled') !== 'false'
 
   useEffect(() => {
     if (!activeSession) return
@@ -48,13 +51,15 @@ export default function Workout() {
     if (ex.tier === 'T1') {
       const state = useStore.getState().getLiftState(ex.liftName, 'T1')
       if (!state) return null
-      const r = computeT1Progression(ex.targetWeight, state.currentStage, completed, state.increment)
+      const rounding = state.rounding ?? 5
+      const r = computeT1Progression(ex.targetWeight, state.currentStage, completed, state.increment, rounding)
       return completed ? `✅ ${r.message}` : `❌ ${r.message}`
     }
     if (ex.tier === 'T2') {
       const state = useStore.getState().getLiftState(ex.liftName, 'T2')
       if (!state) return null
-      const r = computeT2Progression(ex.targetWeight, state.currentStage, completed, state.increment)
+      const rounding = state.rounding ?? 5
+      const r = computeT2Progression(ex.targetWeight, state.currentStage, completed, state.increment, rounding)
       return completed ? `✅ ${r.message}` : `❌ ${r.message}`
     }
     if (ex.tier === 'T3') {
@@ -67,7 +72,7 @@ export default function Workout() {
   const getRestDuration = useCallback(() => {
     if (!ex) return 180
     if (ex.tier === 'T1') return profile?.restTimerT1 ?? 180
-    if (ex.tier === 'T2') return profile?.restTimerT2 ?? 150
+    if (ex.tier === 'T2') return profile?.restTimerT2 ?? 120
     return profile?.restTimerT3 ?? 75
   }, [ex, profile])
 
@@ -114,35 +119,44 @@ export default function Workout() {
     }
   }
 
+  const nextEx = !isLastExercise ? session.exercises[exerciseIndex + 1] : null
+  const def = ex ? getExerciseDefinition(ex.liftName) : null
+  const equipment = def?.equipment ?? 'Barbell'
+
   return (
     <div className="max-w-lg mx-auto p-6 pb-40">
       <div className="mb-6">
         <div className="flex justify-between items-start">
-          <p className="text-slate-400 text-sm">Day {session.day} • Exercise {exerciseIndex + 1} of {session.exercises.length}</p>
-          <span className="text-slate-500 text-sm tabular-nums">{formatDuration(elapsed)}</span>
+          <p className="text-[var(--color-text-secondary)] text-sm">Day {session.day} • Exercise {exerciseIndex + 1} of {session.exercises.length}</p>
+          <span className="text-[var(--color-text-muted)] text-sm tabular-nums">{formatDuration(elapsed)}</span>
         </div>
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold text-slate-100">{ex?.liftName ?? ''}</h1>
+          <h1 className="text-xl font-semibold text-[var(--color-text-primary)] uppercase tracking-wide">{ex?.liftName ?? ''}</h1>
           <button
             onClick={() => setShowExerciseInfo(true)}
-            className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-700"
+            className="p-1 rounded text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-raised)]"
             aria-label="Exercise info"
           >
             ⓘ
           </button>
         </div>
-        <div className="flex items-center gap-2 mt-1">
-          <p className="text-3xl font-bold text-blue-400">
-            {ex?.targetWeight} {profile?.units}
+        {(ex?.tier === 'T1' || ex?.tier === 'T2') && (
+          <p className="text-[var(--color-text-muted)] text-xs mt-1">
+            {ex.tier} · Stage {useStore.getState().getLiftState(ex.liftName, ex.tier)?.currentStage ?? 1}
+          </p>
+        )}
+        <div className="flex items-center gap-2 mt-2">
+          <p className="text-[48px] font-bold text-[var(--color-accent-active)] tabular-nums leading-none" style={{ fontSize: 48 }}>
+            {ex ? formatWeightForDisplay(ex.targetWeight, equipment, profile?.units ?? 'lbs') : ''}
           </p>
           <button
             onClick={() => setShowPlateCalc(true)}
-            className="p-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-400 text-xs"
+            className="p-1.5 rounded-lg bg-[var(--color-bg-surface-raised)] hover:bg-[var(--color-bg-surface-overlay)] text-[var(--color-text-secondary)] text-xs border border-[var(--color-border-subtle)]"
           >
             Plates
           </button>
         </div>
-        <p className="text-slate-400">{ex?.targetScheme}</p>
+        <p className="text-2xl font-semibold text-[var(--color-text-secondary)] tracking-wider tabular-nums" style={{ letterSpacing: '0.05em' }}>{ex?.targetScheme}</p>
         {ex?.tier === 'T1' && (
           <WarmUpSection
             workingWeight={ex.targetWeight}
@@ -154,38 +168,53 @@ export default function Workout() {
 
       {ex && (
         <div className="flex flex-wrap gap-3 justify-center mb-8">
-          {ex.sets.map((set, setIdx) => (
-            <button
-              key={setIdx}
-              onClick={() => handleSetTap(setIdx)}
-              className={`min-w-[64px] min-h-[64px] rounded-xl flex flex-col items-center justify-center text-lg font-semibold transition-all ${
-                set.completed
-                  ? set.actualReps !== null && set.actualReps < set.targetReps
-                    ? 'bg-amber-600/80 text-white'
-                    : 'bg-emerald-600/80 text-white'
-                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-              }`}
-            >
-              <span>{set.targetReps}{ex.tier === 'T3' && setIdx === 2 ? '+' : ''}</span>
-              {set.completed && (
-                <span className="text-sm opacity-90">{set.actualReps ?? set.targetReps}</span>
-              )}
-            </button>
-          ))}
+          {ex.sets.map((set, setIdx) => {
+            const isAmrap = ex.tier === 'T3' && setIdx === 2
+            const isFailed = set.completed && set.actualReps !== null && set.actualReps < set.targetReps
+            const isComplete = set.completed && !isFailed
+            return (
+              <button
+                key={setIdx}
+                onClick={() => handleSetTap(setIdx)}
+                className={`w-14 h-14 min-w-[56px] min-h-[56px] rounded-full flex flex-col items-center justify-center text-base font-semibold transition-all border-2 ${
+                  isComplete
+                    ? 'bg-[var(--color-accent-success)]/20 border-[var(--color-accent-success)] text-[var(--color-accent-success)]'
+                    : isFailed
+                      ? 'bg-[var(--color-accent-fail)]/20 border-[var(--color-accent-fail)] text-[var(--color-accent-fail)]'
+                      : 'bg-[var(--color-bg-surface)] border-[var(--color-border-subtle)] text-[var(--color-text-secondary)] hover:border-[var(--color-accent-active)]'
+                }`}
+              >
+                <span className="tabular-nums">{set.targetReps}{isAmrap ? '+' : ''}</span>
+                {set.completed && (
+                  <span className="text-xs opacity-90 tabular-nums">{set.actualReps ?? set.targetReps}</span>
+                )}
+              </button>
+            )
+          })}
         </div>
       )}
 
+      {ex?.tier === 'T3' && (
+        <p className="text-center text-[var(--color-text-muted)] text-sm mb-4">Hit 25 on AMRAP to level up!</p>
+      )}
+
+      {nextEx && (
+        <p className="text-[var(--color-text-secondary)] text-sm mb-4">
+          Next: {nextEx.liftName} · {nextEx.targetScheme}
+        </p>
+      )}
+
       {allSetsDone && (
-        <div className="mb-6 p-4 rounded-xl bg-slate-800 border border-slate-700">
-          <p className="text-emerald-400 font-medium">✓ Exercise complete</p>
+        <div className="mb-6 p-4 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)]">
+          <p className="text-[var(--color-accent-success)] font-medium">✓ Exercise complete</p>
           {progressionMessage && (
-            <p className="mt-2 text-slate-300 text-sm">{progressionMessage}</p>
+            <p className="mt-2 text-[var(--color-text-primary)] text-sm">{progressionMessage}</p>
           )}
           <button
             onClick={handleNext}
-            className="mt-4 w-full py-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold"
+            className="mt-4 w-full py-4 rounded-xl bg-[var(--color-accent-active)] text-[#0D0D0D] font-semibold hover:opacity-90 transition-opacity"
           >
-            {isLastExercise ? 'Finish Workout' : 'Next Exercise'}
+            {isLastExercise ? 'Finish Workout' : 'Next Exercise →'}
           </button>
         </div>
       )}
@@ -195,6 +224,7 @@ export default function Workout() {
         active={restActive}
         onComplete={() => setRestActive(false)}
         onSkip={() => setRestActive(false)}
+        hapticOnComplete={hapticEnabled}
       />
 
       {showExerciseInfo && ex && (
@@ -205,30 +235,54 @@ export default function Workout() {
       )}
       {editingSet !== null && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-20 p-6">
-          <div className="bg-slate-800 rounded-xl p-6 w-full max-w-sm">
-            <h3 className="text-lg font-semibold text-slate-100 mb-4">
+          <div className="bg-[var(--color-bg-surface-overlay)] rounded-xl p-6 w-full max-w-sm border border-[var(--color-border-subtle)]">
+            <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">
               {session.exercises[editingSet.ex]?.tier === 'T3' && editingSet.set === 2
-                ? 'AMRAP reps'
+                ? 'AMRAP reps — Hit 25 to level up!'
                 : 'Actual reps'}
             </h3>
-            <input
-              type="number"
-              value={editReps}
-              onChange={(e) => setEditReps(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg bg-slate-700 text-slate-100 text-xl text-center mb-4"
-              autoFocus
-              min={0}
-            />
+            {session.exercises[editingSet.ex]?.tier === 'T3' && editingSet.set === 2 ? (
+              <div className="flex items-center justify-center gap-4 mb-4">
+                <button
+                  onClick={() => setEditReps(String(Math.max(0, parseInt(editReps, 10) - 1)))}
+                  className="w-14 h-14 rounded-full bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-subtle)] text-[var(--color-text-primary)] text-2xl font-bold hover:border-[var(--color-accent-active)]"
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  value={editReps}
+                  onChange={(e) => setEditReps(e.target.value)}
+                  className="w-24 px-4 py-3 rounded-lg bg-[var(--color-bg-surface-raised)] text-[var(--color-text-primary)] text-2xl text-center tabular-nums border border-[var(--color-border-subtle)]"
+                  min={0}
+                />
+                <button
+                  onClick={() => setEditReps(String(parseInt(editReps, 10) + 1 || 0))}
+                  className="w-14 h-14 rounded-full bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-subtle)] text-[var(--color-text-primary)] text-2xl font-bold hover:border-[var(--color-accent-active)]"
+                >
+                  +
+                </button>
+              </div>
+            ) : (
+              <input
+                type="number"
+                value={editReps}
+                onChange={(e) => setEditReps(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-[var(--color-bg-surface-raised)] text-[var(--color-text-primary)] text-xl text-center mb-4 tabular-nums border border-[var(--color-border-subtle)]"
+                autoFocus
+                min={0}
+              />
+            )}
             <div className="flex gap-3">
               <button
                 onClick={() => { setEditingSet(null); setEditReps('') }}
-                className="flex-1 py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300"
+                className="flex-1 py-3 rounded-lg bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-surface-raised)] text-[var(--color-text-secondary)] border border-[var(--color-border-subtle)]"
               >
                 Cancel
               </button>
               <button
                 onClick={handleEditReps}
-                className="flex-1 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white"
+                className="flex-1 py-3 rounded-lg bg-[var(--color-accent-active)] text-[#0D0D0D] font-semibold"
               >
                 Save
               </button>
